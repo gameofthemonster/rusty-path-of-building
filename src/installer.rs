@@ -1,3 +1,4 @@
+use crate::installer::patch_install::apply_pob1_patch;
 use crate::{
     app::AppState,
     args::Game,
@@ -5,8 +6,8 @@ use crate::{
     dpi::{LogicalPoint, LogicalRect},
     fonts::{Alignment, FontStyle, LayoutJob},
     installer::download::{
-        DownloadEvent, ExtractionRule, build_client, download_and_extract_tarball,
-        download_file_to_disk, fetch_file_contents,
+        build_client, download_and_extract_tarball, download_file_to_disk, fetch_file_contents,
+        DownloadEvent, ExtractionRule,
     },
     mode::{AppEvent, ModeFrameOutput, ModeTransition},
     renderer::primitives::{ClippedPrimitive, DrawPrimitive, TextPrimitive},
@@ -18,13 +19,14 @@ use std::{
     fs,
     path::Path,
     sync::{
-        LazyLock,
         mpsc::{self, Receiver, TryRecvError},
+        LazyLock,
     },
     thread,
 };
 
 mod download;
+mod patch_install;
 
 const COMPAT_REPO: &str = "meehl/rusty-pob-manifest";
 
@@ -183,6 +185,13 @@ fn install<P: AsRef<Path>>(
 
     report(progress_tx, "Downloading assets...");
     download_pob(&client, target_dir, game, pob_version, progress_tx)?;
+
+    if matches!(game, Game::Poe1) {
+        report(progress_tx, "Applying PoE1 patch translate supports...");
+        apply_pob1_patch(&client, target_dir, pob_version, &mut |msg| {
+            let _ = progress_tx.send(Progress::Status(msg));
+        })?;
+    }
 
     report(progress_tx, "Finalizing installation...");
     replace_updatecheck(&client, target_dir)?;
