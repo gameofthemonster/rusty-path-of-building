@@ -92,6 +92,30 @@ impl Fonts {
                 .collection
                 .set_generic_families(*generic_family, family_ids.into_iter());
         }
+
+        self.register_cjk_fallbacks();
+    }
+
+    /// Pre-sets the CJK script fallback to work around a macOS limitation.
+    fn register_cjk_fallbacks(&mut self) {
+        use parley::fontique::{FallbackKey, Script};
+
+        let cjk_ids: Vec<_> = [
+            "Hiragino Sans GB", // macOS
+            "Microsoft YaHei",  // Windows
+        ]
+        .iter()
+        .filter_map(|name| self.font_context.collection.family_id(name))
+        .collect();
+
+        if cjk_ids.is_empty() {
+            return;
+        }
+
+        self.font_context.collection.set_fallbacks(
+            FallbackKey::new(Script(*b"Hani"), None),
+            cjk_ids.iter().copied(),
+        );
     }
 
     /// Needs to be called at beginning of each frame.
